@@ -92,15 +92,22 @@ $(function(){
 	}
 
 	function downloadRoutes(sid) {
-		$.getJSON("http://bike.parseapp.com/getroute?start="+sid.toString(), function(data) {
+		//clear routes
+		routes = [];
+		$.each( routeLayer.children, function( i, r ) {
+			routeLayer.remove(r);
+		});
+
+		$.getJSON("http://bike.parseapp.com/getroutes?start="+sid.toString(), function(data) {
 			$.each( data, function( i, d ) {
 				var points = [];
 				$.each ( d['points'], function (j, p) {
 					var pos = getScreenPos(p[1], p[0]);
-					points.push(new Two.Anchor(pos.x,pos.y));
+					points.push(pos);
 				});
-				drawRoute(points);
+				routes[i] = new RouteLine(points);
 			});
+			two.bind('update', drawRoutes);
 		});
 	}
 
@@ -113,6 +120,9 @@ $(function(){
 		this.postal = postal;
 		this.neighborhood = neighborhood;
 	}
+	function RouteLine(points){
+		this.points = points;
+	}
 	
 	//GLOBAL
 	var bikesNumMin = 12;
@@ -121,20 +131,22 @@ $(function(){
 	var stationLayer = new Two.Group();
 	two.add(routeLayer);
 	two.add(stationLayer);
-	var stations = new Array();
+	var stations = [];
+	var routes = [];
 
 	//DRAW UPDATE
 	function drawStations(frameCount) {
 		var drawEnd = true;
-		if (isNaN(this.startFrame)) {
+		if (isNaN(this.stationDrawFrame)) {
 			console.log('start draw stations');
-			this.startFrame = frameCount;
+			this.stationDrawFrame = frameCount;
 			drawEnd = false;
 		}
 		if(Object.keys(stationLayer.children).length < stations.length){
-			//create new dot
-			var i = frameCount - this.startFrame;
+			//create new station
+			var i = frameCount - this.stationDrawFrame;
 			var s = stations[i];
+			// var dot = two.makeCircle(s.pos.x, s.pos.y, 2 + 4 * (s['bikes'] - bikesNumMin) / (bikesNumMax - bikesNumMin) );
 			var dot = two.makeCircle(two.width/2 - 150, two.height/2, 2 + 4 * (s['bikes'] - bikesNumMin) / (bikesNumMax - bikesNumMin) );
 			dot.fill = '#000';
 			dot.stroke = 'black';
@@ -163,14 +175,47 @@ $(function(){
 			$.each( stations, function( i, s ) {
 				addInteractivity(s);
 			});
+			this.stationDrawFrame = NaN;
 			two.unbind('update', drawStations);
+			console.log('end of stations drawing');
 		};
 	}
 
-	function drawRoute(points) {
-		var polygon = two.makePolygon(points, true);
-		polygon.noFill();
-		routeLayer.add(polygon);
+	function drawRoutes(frameCount) {
+		var drawEnd = true;
+		if (isNaN(this.routeDrawFrame)) {
+			console.log('start draw routes');
+			this.routeDrawFrame = frameCount;
+			drawEnd = false;
+		}
+		if(Object.keys(routeLayer.children).length < routes.length){
+			//create new route
+			var i = frameCount - this.routeDrawFrame;
+			// var points = routes[i];
+			var line = two.makePolygon([], true);
+			line.noFill();
+			line.stroke = 'rgba(58, 207, 118, 0.3)';
+			routes[i].line = line;
+			routeLayer.add(line);
+			drawEnd = false;
+			console.log('add one route');
+		}
+		$.each( routes, function(i, r) {
+			if (r.line) {
+				var pointIndex = r.line.vertices.length;
+				var points = routes[i].points;
+				if (pointIndex < points.length) {
+					r.line.vertices.push(points[pointIndex]);
+					drawEnd = false;
+				};
+			}
+		});
+
+		if (drawEnd) {
+			this.routeDrawFrame = NaN;
+			two.unbind('update', drawRoutes);
+			console.log('end of routes drawing');
+		};
 	}
 
 	//RUN 
