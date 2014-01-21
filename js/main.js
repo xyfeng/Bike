@@ -51,35 +51,28 @@ $(function(){
 	f1.add(settings, 'strokeWidth', 0, 1);
 	f1.closed = true;
 
-	//OBJECTS
-	function StationDot(dot, id, name, bikes, postal, neighborhood){
-		this.dot = dot;
-		this.id = id;
-		this.name = name;
-		this.bikes = bikes;
-		this.postal = postal;
-		this.neighborhood = neighborhood;
-	}
-
 	//FUNCTIONS
 
 	//map projection
 	var dest = 'PROJCS["NAD83 / Massachusetts Mainland",GEOGCS["NAD83",DATUM["North_American_Datum_1983",SPHEROID["GRS 1980",6378137,298.257222101,AUTHORITY["EPSG","7019"]],AUTHORITY["EPSG","6269"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.01745329251994328,AUTHORITY["EPSG","9122"]],AUTHORITY["EPSG","4269"]],UNIT["metre",1,AUTHORITY["EPSG","9001"]],PROJECTION["Lambert_Conformal_Conic_2SP"],PARAMETER["standard_parallel_1",42.68333333333333],PARAMETER["standard_parallel_2",41.71666666666667],PARAMETER["latitude_of_origin",41],PARAMETER["central_meridian",-71.5],PARAMETER["false_easting",200000],PARAMETER["false_northing",750000],AUTHORITY["EPSG","26986"],AXIS["X",EAST],AXIS["Y",NORTH]]';
 	var center = proj4(dest, [-73.9770,40.7214]);
 	function getScreenPos(lat, lng){
-		var pos = {};
 
 		var point = proj4(dest,[lng,lat]);
 
-		pos.x = two.width / 2 + (point[0] - center[0])/10;
-		pos.y = two.height / 2 - (point[1] - center[1])/10;
+		var posX = two.width / 2 + (point[0] - center[0])/10;
+		var posY = two.height / 2 - (point[1] - center[1])/10;
 
-		return pos;
+		return new Two.Vector(posX, posY);
 	}
 
 	function downloadStations(){
 		$.getJSON("http://bike.parseapp.com/getstations", function(data) {
-			stationData = data;
+			$.each( data, function( i, d ) {
+				var pos = getScreenPos(d['lat'], d['lng']);
+				stations[i] = new StationDot(d['sid'], pos, d['name'], d['bikes'], d['postal'], d['neighborhood']);
+			});
+			two.bind('update', drawStations);
 		});
 	}
 
@@ -94,43 +87,52 @@ $(function(){
 			.bind('mouseup', function(e) {
 				e.preventDefault();
 				console.log(station.name);
-				showRoutes(station.id);
+				// showRoutes(station.id);
 			})
 	}
 
-
-
+	//OBJECTS
+	function StationDot(id, pos, name, bikes, postal, neighborhood){
+		this.id = id;
+		this.pos = pos;
+		this.name = name;
+		this.bikes = bikes;
+		this.postal = postal;
+		this.neighborhood = neighborhood;
+	}
 	
 	//GLOBAL
 	var bikesNumMin = 12;
 	var bikesNumMax = 67;
-	var stationData = [];
+	var stationLayer = new Two.Group();
+	two.add(stationLayer);
 	var stations = new Array();
 
-
-
 	//DRAW UPDATE
-	function updateStations(frameCount) {
-		if (stationData.length == 0) {
+	function drawStations(frameCount) {
+		if (isNaN(this.startFrame)) {
 			this.startFrame = frameCount;
 		}
-		else if(stations.length < stationData.length){
+		if(Object.keys(stationLayer.children).length < stations.length){
 			var i = frameCount - this.startFrame;
-			var d = stationData[i];
-			var pos = getScreenPos(d['lat'], d['lng']);
-			var dot = two.makeCircle(pos.x, pos.y, 2 + 4 * (d['bikes'] - bikesNumMin) / (bikesNumMax - bikesNumMin) );
+			var s = stations[i];
+			var dot = two.makeCircle(s.pos.x, s.pos.y, 2 + 4 * (s['bikes'] - bikesNumMin) / (bikesNumMax - bikesNumMin) );
 			dot.fill = '#000';
 			dot.stroke = 'black';
 			dot.linewidth = 0.0;
-			
-			stations[i] = new StationDot(dot, d['sid'], d['name'], d['bikes'], d['postal'], d['neighborhood']);
-			addInteractivity(stations[i]);
+			s.dot = dot;
+			stationLayer.add(dot);
+		}
+		else{
+			$.each( stations, function( i, s ) {
+				addInteractivity(s);
+			});
+			two.unbind('update', drawStations);
 		}
 	}
 
 	//RUN 
 	downloadStations();
-	two.bind('update', updateStations);
 	two.play();
 
 	// for(var i = 0; i < stations.length; i ++){
