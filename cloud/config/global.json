@@ -1,0 +1,14 @@
+{
+    "applications": {
+        "_default": {
+            "link": "nyc"
+        }, 
+        "nyc": {
+            "applicationId": "viyEiYQSE5OgLQf10fhDVi6eg5YyB7bWYVcsfk0w", 
+            "masterKey": "uqbPIid2x32avJ8eVonI2J77fhKcb46Jaseottzc"
+        }
+    }, 
+    "global": {
+        "parseVersion": "1.2.16"
+    }
+}
