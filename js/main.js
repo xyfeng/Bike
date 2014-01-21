@@ -87,8 +87,21 @@ $(function(){
 			.bind('mouseup', function(e) {
 				e.preventDefault();
 				console.log(station.name);
-				// showRoutes(station.id);
+				downloadRoutes(station.id);
 			})
+	}
+
+	function downloadRoutes(sid) {
+		$.getJSON("http://bike.parseapp.com/getroute?start="+sid.toString(), function(data) {
+			$.each( data, function( i, d ) {
+				var points = [];
+				$.each ( d['points'], function (j, p) {
+					var pos = getScreenPos(p[1], p[0]);
+					points.push(new Two.Anchor(pos.x,pos.y));
+				});
+				drawRoute(points);
+			});
+		});
 	}
 
 	//OBJECTS
@@ -104,31 +117,60 @@ $(function(){
 	//GLOBAL
 	var bikesNumMin = 12;
 	var bikesNumMax = 67;
+	var routeLayer = new Two.Group();
 	var stationLayer = new Two.Group();
+	two.add(routeLayer);
 	two.add(stationLayer);
 	var stations = new Array();
 
 	//DRAW UPDATE
 	function drawStations(frameCount) {
+		var drawEnd = true;
 		if (isNaN(this.startFrame)) {
+			console.log('start draw stations');
 			this.startFrame = frameCount;
+			drawEnd = false;
 		}
 		if(Object.keys(stationLayer.children).length < stations.length){
+			//create new dot
 			var i = frameCount - this.startFrame;
 			var s = stations[i];
-			var dot = two.makeCircle(s.pos.x, s.pos.y, 2 + 4 * (s['bikes'] - bikesNumMin) / (bikesNumMax - bikesNumMin) );
+			var dot = two.makeCircle(two.width/2 - 150, two.height/2, 2 + 4 * (s['bikes'] - bikesNumMin) / (bikesNumMax - bikesNumMin) );
 			dot.fill = '#000';
 			dot.stroke = 'black';
 			dot.linewidth = 0.0;
 			s.dot = dot;
 			stationLayer.add(dot);
+			drawEnd = false;
+			console.log('add one station');
 		}
-		else{
+		$.each( stations, function(i, s) {
+			if (s.dot) {
+				var diff = new Two.Vector();
+				diff.sub(s.pos, s.dot.translation);
+				if (diff.length() < 1) {
+					s.dot.translation = s.pos;
+				}
+				else{
+					s.dot.translation.x += diff.x * 0.2;
+					s.dot.translation.y += diff.y * 0.2;
+					drawEnd = false;
+				}
+			}
+		});
+
+		if (drawEnd) {
 			$.each( stations, function( i, s ) {
 				addInteractivity(s);
 			});
 			two.unbind('update', drawStations);
-		}
+		};
+	}
+
+	function drawRoute(points) {
+		var polygon = two.makePolygon(points, true);
+		polygon.noFill();
+		routeLayer.add(polygon);
 	}
 
 	//RUN 
@@ -137,20 +179,5 @@ $(function(){
 
 	// for(var i = 0; i < stations.length; i ++){
 	// 	stations[i].dot.linewidth = settings.strokeWidth;
-	// }
-
-	// function showRoutes(sid) {
-	// 	$.getJSON("http://bike.parseapp.com/getroutes?start="+sid.toString(), function(data) {
-	// 		$.each( data, function( i, d ) {
-	// 			var points = [];
-	// 			$.each ( d['points'], function (j, p) {
-	// 				var pos = getScreenPos(p[1], p[0]);
-	// 				points.push(new Two.Anchor(pos.x,pos.y));
-	// 			});
-	// 			var polygon = two.makePolygon(points, true);
-	// 			polygon.noFill();
-	// 			two.update();
-	// 		});
-	// 	});
 	// }
 });
