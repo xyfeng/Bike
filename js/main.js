@@ -2,6 +2,7 @@ $(function(){
 
 	//DRAW SETUP
 	var two = new Two({
+		type: Two.Types.svg,
         autostart: false,
 		fullscreen: true
 	}).appendTo(document.body);
@@ -163,9 +164,12 @@ $(function(){
 			var startIndex = (frameCount - this.stationDrawFrame) * settings.stationsFrame;
 			for (var i = startIndex; i < stations.length && i < startIndex + settings.stationsFrame; i++) {
 				var s = stations[i];
+				var ratio = (s['bikes'] - bikesNumMin) / (bikesNumMax - bikesNumMin);
 				// var dot = two.makeCircle(s.pos.x, s.pos.y, 2 + 4 * (s['bikes'] - bikesNumMin) / (bikesNumMax - bikesNumMin) );
-				var dot = two.makeCircle(two.width/2 - 150, two.height/2, 2 + 4 * (s['bikes'] - bikesNumMin) / (bikesNumMax - bikesNumMin) );
-				dot.fill = '#000';
+				var dot = two.makeCircle(two.width/2 - 150, two.height/2, 2 + 4 * ratio );
+				var gray = parseInt(ratio * 0.5 * 256).toString();
+				var color = 'rgb('+gray+','+gray+','+gray+')';
+				dot.fill = color;
 				dot.stroke = 'black';
 				dot.linewidth = 0.0;
 				s.dot = dot;
