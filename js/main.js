@@ -44,12 +44,22 @@ $(function(){
 	//GUI SETUP
 	function Settings(){
 		this.strokeWidth = 0.0;
+		this.stationsSpeed = 0.5;
+		this.stationsFrame = 5;
+		this.redraw = function(){
+			reDrawStations();
+		};
 	}
 	var settings = new Settings();
 	var gui = new dat.GUI();
+	var f0 = gui.addFolder('draw');
+	f0.add(settings, 'stationsSpeed', 0.02, 0.8).step(0.02);
+	f0.add(settings, 'stationsFrame', 1, 100).step(1);
+	f0.closed = false;
 	var f1 = gui.addFolder('style');
-	f1.add(settings, 'strokeWidth', 0, 1);
-	f1.closed = true;
+	f1.add(settings, 'strokeWidth', 0, 1).step(0.1);
+	f1.closed = false;
+	gui.add(settings, 'redraw');
 
 	//FUNCTIONS
 
@@ -86,7 +96,7 @@ $(function(){
 			})
 			.bind('mouseup', function(e) {
 				e.preventDefault();
-				console.log(station.name);
+				// console.log(station.name);
 				downloadRoutes(station.id);
 			})
 	}
@@ -135,26 +145,34 @@ $(function(){
 	var routes = [];
 
 	//DRAW UPDATE
+	function reDrawStations(){
+		$.each( stationLayer.children, function( i, s ) {
+			stationLayer.remove(s);
+		});
+		two.bind('update', drawStations);
+	}
 	function drawStations(frameCount) {
 		var drawEnd = true;
 		if (isNaN(this.stationDrawFrame)) {
-			console.log('start draw stations');
+			// console.log('start draw stations');
 			this.stationDrawFrame = frameCount;
 			drawEnd = false;
 		}
 		if(Object.keys(stationLayer.children).length < stations.length){
 			//create new station
-			var i = frameCount - this.stationDrawFrame;
-			var s = stations[i];
-			// var dot = two.makeCircle(s.pos.x, s.pos.y, 2 + 4 * (s['bikes'] - bikesNumMin) / (bikesNumMax - bikesNumMin) );
-			var dot = two.makeCircle(two.width/2 - 150, two.height/2, 2 + 4 * (s['bikes'] - bikesNumMin) / (bikesNumMax - bikesNumMin) );
-			dot.fill = '#000';
-			dot.stroke = 'black';
-			dot.linewidth = 0.0;
-			s.dot = dot;
-			stationLayer.add(dot);
-			drawEnd = false;
-			console.log('add one station');
+			var startIndex = (frameCount - this.stationDrawFrame) * settings.stationsFrame;
+			for (var i = startIndex; i < stations.length && i < startIndex + settings.stationsFrame; i++) {
+				var s = stations[i];
+				// var dot = two.makeCircle(s.pos.x, s.pos.y, 2 + 4 * (s['bikes'] - bikesNumMin) / (bikesNumMax - bikesNumMin) );
+				var dot = two.makeCircle(two.width/2 - 150, two.height/2, 2 + 4 * (s['bikes'] - bikesNumMin) / (bikesNumMax - bikesNumMin) );
+				dot.fill = '#000';
+				dot.stroke = 'black';
+				dot.linewidth = 0.0;
+				s.dot = dot;
+				stationLayer.add(dot);
+				drawEnd = false;
+				// console.log('add one station');
+			};
 		}
 		$.each( stations, function(i, s) {
 			if (s.dot) {
@@ -164,8 +182,8 @@ $(function(){
 					s.dot.translation = s.pos;
 				}
 				else{
-					s.dot.translation.x += diff.x * 0.2;
-					s.dot.translation.y += diff.y * 0.2;
+					s.dot.translation.x += diff.x * settings.stationsSpeed;
+					s.dot.translation.y += diff.y * settings.stationsSpeed;
 					drawEnd = false;
 				}
 			}
@@ -177,14 +195,14 @@ $(function(){
 			});
 			this.stationDrawFrame = NaN;
 			two.unbind('update', drawStations);
-			console.log('end of stations drawing');
+			// console.log('end of stations drawing');
 		};
 	}
 
 	function drawRoutes(frameCount) {
 		var drawEnd = true;
 		if (isNaN(this.routeDrawFrame)) {
-			console.log('start draw routes');
+			// console.log('start draw routes');
 			this.routeDrawFrame = frameCount;
 			drawEnd = false;
 		}
@@ -198,7 +216,7 @@ $(function(){
 			routes[i].line = line;
 			routeLayer.add(line);
 			drawEnd = false;
-			console.log('add one route');
+			// console.log('add one route');
 		}
 		$.each( routes, function(i, r) {
 			if (r.line) {
@@ -214,7 +232,7 @@ $(function(){
 		if (drawEnd) {
 			this.routeDrawFrame = NaN;
 			two.unbind('update', drawRoutes);
-			console.log('end of routes drawing');
+			// console.log('end of routes drawing');
 		};
 	}
 
