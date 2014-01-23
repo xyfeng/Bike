@@ -131,7 +131,7 @@ _.extend(ZUI.prototype, {
         if (newScale === this.scale) {
             return this;
         }
-        var sf = this.clientToSurface(clientX, clientY);
+        var sf = this.clcientToSurface(clientX, clientY);
         var scaleBy = newScale / this.scale;
         this.surfaceMatrix.scale(scaleBy);
         this.scale = newScale;

@@ -5,10 +5,11 @@ $(function() {
 
     //zoom
     $('body').bind('mousewheel', function(event) {
-        console.log('asdf');
         var e = event.originalEvent;
         e.stopPropagation();
         e.preventDefault();
+        var dy = e.wheelDeltaY / 1000;
+        view.zoom = Math.max(Math.min(view.zoom + dy, 5), 0.5);
     })
 
     //pan
@@ -37,18 +38,8 @@ $(function() {
                 var pos = getScreenPos(d['lat'], d['lng']);
                 stations[i] = new StationDot(d['sid'], pos, d['name'], d['bikes'], d['postal'], d['neighborhood']);
             });
-            drawStations();
-        });
-    }
-
-    function drawStations() {
-        $.each(stations, function(i, s) {
-            var ratio = (s['bikes'] - bikesNumMin) / (bikesNumMax - bikesNumMin);
-            var path = new Path.Circle({
-                center: s.pos,
-                radius: 2 + 4 * ratio,
-                fillColor: 'black'
-            });
+            console.log('station downloaded');
+            drawStationStart = true;
         });
     }
 
@@ -65,8 +56,8 @@ $(function() {
     //GUI SETUP
     function Settings() {
         this.strokeWidth = 0.0;
-        this.stationsSpeed = 0.5;
-        this.stationsFrame = 5;
+        this.stationsSpeed = 0.2;
+        this.stationsFrame = 15;
         this.redraw = function() {
             reDrawStations();
         };
@@ -82,6 +73,11 @@ $(function() {
     f1.closed = false;
     gui.add(settings, 'redraw');
 
+    function reDrawStations() {
+        stationGroup.removeChildren();
+        drawStationStart = true;
+    }
+
 
     //PAPER SETUP
     paper.setup('paperCanvas');
@@ -92,12 +88,54 @@ $(function() {
     var bikesNumMax = 67;
     var stations = [];
     var routes = [];
+    var drawStationStart = false;
+    var stationGroup = new Group({
+        position: view.center
+    });
 
     view.draw();
-
     downloadStations();
 
-    view.onFrame = function(event) {}
+    view.onFrame = function(event) {
+        //draw stations
+        if (drawStationStart) {
+            drawStationStart = false;
+            if (isNaN(this.stationDrawFrame)) {
+                this.stationDrawFrame = event.count;
+            }
+            var totalStations = stations.length;
+            if(stationGroup.children.length < totalStations){
+                var startIndex = (event.count - this.stationDrawFrame) * settings.stationsFrame;
+                for (var i = startIndex; i < totalStations && i < startIndex + settings.stationsFrame; i++) {
+                    var s = stations[i];
+                    var ratio = (s.bikes - bikesNumMin) / (bikesNumMax - bikesNumMin);
+                    var dot = new Path.Circle({
+                        center: view.center,
+                        radius: 2 + 4 * ratio,
+                        fillColor: 'black'
+                    });
+                    s.dot = dot;
+                    stationGroup.addChild(dot);
+                };
+                drawStationStart = true;
+            }
+            $.each(stations, function(i, s) {
+                if (s.dot) {
+                    var diff = new Point(s.pos.x - s.dot.position.x, s.pos.y - s.dot.position.y);
+                    if (diff.length < 0.5) {
+                        s.dot.position = s.pos;
+                    } else {
+                        var offset = diff.multiply([settings.stationsSpeed, settings.stationsSpeed]);
+                        s.dot.position = new Point(s.dot.position.x + offset.x, s.dot.position.y + offset.y);
+                        drawStationStart = true;
+                    }
+                };
+            });
+        };
+        if(!drawStationStart){
+            this.stationDrawFrame = NaN;
+        }
+    }
 
     view.onResize = function(event) {}
 
