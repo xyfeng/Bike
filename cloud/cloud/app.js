@@ -1,6 +1,21 @@
 var express = require('express');
 var app = express();
 
+app.get('/getneighborhoods', function(req, res) {
+	res.header("Access-Control-Allow-Origin", "*");
+	res.header("Access-Control-Allow-Headers", "X-Requested-With");
+	var query = new Parse.Query("neighborhood");
+	query.limit(400);
+	query.find({
+		success: function(results) {
+			res.send(results);
+		},
+		error: function() {
+			res.send('Whoops, API is not available right now.');
+		}
+	});
+});
+
 app.get('/getstation', function(req, res) {
 	res.header("Access-Control-Allow-Origin", "*");
 	res.header("Access-Control-Allow-Headers", "X-Requested-With");
@@ -46,6 +61,7 @@ app.get('/getstations', function(req, res) {
 		}
 	});
 });
+
 
 app.get('/getroute', function(req, res) {
 	res.header("Access-Control-Allow-Origin", "*");

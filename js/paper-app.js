@@ -1,3 +1,4 @@
+//Install Paper
 paper.install(window);
 $(function() {
 
@@ -33,13 +34,36 @@ $(function() {
     }
 
     function downloadStations() {
-        $.getJSON("http://bike.parseapp.com/getstations", function(data) {
+        // $.getJSON("http://bike.parseapp.com/getstations", function(data) {
+        $.getJSON("data/station.json", function(data) {
             $.each(data, function(i, d) {
                 var pos = getScreenPos(d['lat'], d['lng']);
                 stations[i] = new StationDot(d['sid'], pos, d['name'], d['bikes'], d['postal'], d['neighborhood']);
             });
             console.log('station downloaded');
             drawStationStart = true;
+        });
+    }
+
+    function downloadNeighborhood() {
+        // $.getJSON("http://bike.parseapp.com/getneighborhoods", function(data) {
+        $.getJSON("data/neighborhood.json", function(data) {
+            console.log('neighborhood map downloaded');
+            drawNeighborhood(data);
+        });
+    }
+
+    function drawNeighborhood(data){
+        $.each(data, function(i, n){
+            var coordinates = n.coordinates;
+            var path = new Path();
+            path.strokeColor = new Color(0.2, 0.1, 0.4, 0.1);
+            path.fillColor = new Color(0.4, 0.2, 0.1, 0.1);
+            path.closed = true;
+            $.each(coordinates, function(j, c){
+                path.add(getScreenPos(c[1], c[0]));
+            });
+            neighborhoodGroup.addChild(path);
         });
     }
 
@@ -58,6 +82,7 @@ $(function() {
         this.strokeWidth = 0.0;
         this.stationsSpeed = 0.2;
         this.stationsFrame = 15;
+        this.drawMap = false;
         this.redraw = function() {
             reDrawStations();
         };
@@ -65,6 +90,7 @@ $(function() {
     var settings = new Settings();
     var gui = new dat.GUI();
     var f0 = gui.addFolder('draw');
+    f0.add(settings, 'drawMap');
     f0.add(settings, 'stationsSpeed', 0.02, 0.8).step(0.02);
     f0.add(settings, 'stationsFrame', 1, 100).step(1);
     f0.closed = false;
@@ -89,14 +115,19 @@ $(function() {
     var stations = [];
     var routes = [];
     var drawStationStart = false;
-    var stationGroup = new Group({
-        position: view.center
-    });
 
     view.draw();
+
+    var neighborhoodGroup = new Group({
+    });
+    neighborhoodGroup.visible = false;
+    var stationGroup = new Group({
+    });
+    downloadNeighborhood();
     downloadStations();
 
     view.onFrame = function(event) {
+        neighborhoodGroup.visible = settings.drawMap;
         //draw stations
         if (drawStationStart) {
             drawStationStart = false;
