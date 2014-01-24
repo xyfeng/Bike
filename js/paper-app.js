@@ -24,12 +24,12 @@ $(function() {
 
     //map projection
     var dest = 'PROJCS["NAD83 / Massachusetts Mainland",GEOGCS["NAD83",DATUM["North_American_Datum_1983",SPHEROID["GRS 1980",6378137,298.257222101,AUTHORITY["EPSG","7019"]],AUTHORITY["EPSG","6269"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.01745329251994328,AUTHORITY["EPSG","9122"]],AUTHORITY["EPSG","4269"]],UNIT["metre",1,AUTHORITY["EPSG","9001"]],PROJECTION["Lambert_Conformal_Conic_2SP"],PARAMETER["standard_parallel_1",42.68333333333333],PARAMETER["standard_parallel_2",41.71666666666667],PARAMETER["latitude_of_origin",41],PARAMETER["central_meridian",-71.5],PARAMETER["false_easting",200000],PARAMETER["false_northing",750000],AUTHORITY["EPSG","26986"],AXIS["X",EAST],AXIS["Y",NORTH]]';
-    var center = proj4(dest, [-73.9770, 40.7214]);
+    var center = proj4(dest, [-73.9888, 40.7222]);
 
     function getScreenPos(lat, lng) {
         var point = proj4(dest, [lng, lat]);
-        var posX = view.center.x + (point[0] - center[0]) / 10;
-        var posY = view.center.y - (point[1] - center[1]) / 10;
+        var posX = maxWidth/2 + (point[0] - center[0]) / 10;
+        var posY = maxHeight/2 - (point[1] - center[1]) / 10;
         return new Point(posX, posY);
     }
 
@@ -57,14 +57,17 @@ $(function() {
         $.each(data, function(i, n){
             var coordinates = n.coordinates;
             var path = new Path();
-            path.strokeColor = new Color(0.2, 0.1, 0.4, 0.1);
-            path.fillColor = new Color(0.4, 0.2, 0.1, 0.1);
+            path.strokeColor = new Color(0.92, 0.91, 0.94);
+            if (n.hasBike) {
+                path.fillColor = new Color(0.98, 0.98, 0.98);
+            };
             path.closed = true;
             $.each(coordinates, function(j, c){
                 path.add(getScreenPos(c[1], c[0]));
             });
             neighborhoodGroup.addChild(path);
-        });
+        }); 
+        neighborhoodGroup.clipped = true;
     }
 
     //OBJECTS
@@ -82,7 +85,7 @@ $(function() {
         this.strokeWidth = 0.0;
         this.stationsSpeed = 0.2;
         this.stationsFrame = 15;
-        this.drawMap = false;
+        this.drawMap = true;
         this.redraw = function() {
             reDrawStations();
         };
@@ -110,21 +113,29 @@ $(function() {
     var tool = new Tool();
 
     //GLOBAL
+    var maxWidth = 2000;
+    var maxHeight = 2000;
+    var screenCenter = new Point(maxWidth/2, maxHeight/2);
+    paper.project.view.center = screenCenter;
     var bikesNumMin = 12;
     var bikesNumMax = 67;
     var stations = [];
     var routes = [];
     var drawStationStart = false;
 
-    view.draw();
-
     var neighborhoodGroup = new Group({
+        center: screenCenter,
     });
-    neighborhoodGroup.visible = false;
+    // add boundary
+    var boundaryBox = new Path.Rectangle(0, 0, maxWidth, maxHeight);
+    neighborhoodGroup.addChild(boundaryBox);
     var stationGroup = new Group({
+        center: screenCenter
     });
+
     downloadNeighborhood();
     downloadStations();
+    view.draw();
 
     view.onFrame = function(event) {
         neighborhoodGroup.visible = settings.drawMap;
