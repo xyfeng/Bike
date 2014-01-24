@@ -57,6 +57,7 @@ $(function() {
         $.each(data, function(i, n){
             var coordinates = n.coordinates;
             var path = new Path();
+            path.name = n.name;
             path.strokeColor = new Color(0.92, 0.91, 0.94);
             if (n.hasBike) {
                 path.fillColor = new Color(0.98, 0.98, 0.98);
@@ -129,6 +130,13 @@ $(function() {
     // add boundary
     var boundaryBox = new Path.Rectangle(0, 0, maxWidth, maxHeight);
     neighborhoodGroup.addChild(boundaryBox);
+    // create station symbol
+    var stationDot = new Path.Circle({
+        center: screenCenter,
+        radius: 2,
+        fillColor: 'black'
+    });
+    var stationSymbol = new Symbol(stationDot);
     var stationGroup = new Group({
         center: screenCenter
     });
@@ -151,11 +159,8 @@ $(function() {
                 for (var i = startIndex; i < totalStations && i < startIndex + settings.stationsFrame; i++) {
                     var s = stations[i];
                     var ratio = (s.bikes - bikesNumMin) / (bikesNumMax - bikesNumMin);
-                    var dot = new Path.Circle({
-                        center: view.center,
-                        radius: 2 + 4 * ratio,
-                        fillColor: 'black'
-                    });
+                    var dot = stationSymbol.place(screenCenter);
+                    dot.scale(1+ratio*2);
                     s.dot = dot;
                     stationGroup.addChild(dot);
                 };
@@ -179,7 +184,11 @@ $(function() {
         }
     }
 
-    view.onResize = function(event) {}
+    view.onResize = function(event) {
+    }
+
+    tool.onMouseMove = function(event) {
+    }
 
     tool.onMouseDown = function(event) {}
 
