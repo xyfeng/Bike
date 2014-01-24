@@ -71,6 +71,24 @@ $(function() {
         neighborhoodGroup.clipped = true;
     }
 
+    function downloadRoutes(sid) {
+        //clear routes
+        routes = [];
+        routeGroup.removeChildren();
+
+        $.getJSON("http://bike.parseapp.com/getroute?start=" + sid.toString(), function(data) {
+            $.each(data, function(i, d) {
+                var points = [];
+                $.each(d['points'], function(j, p) {
+                    var pos = getScreenPos(p[1], p[0]);
+                    points.push(pos);
+                });
+                routes[i] = new RouteLine(points);
+            });
+            drawRouteStart = true;
+        });
+    }
+
     //OBJECTS
     function StationDot(id, pos, name, bikes, postal, neighborhood) {
         this.id = id;
@@ -79,6 +97,10 @@ $(function() {
         this.bikes = bikes;
         this.postal = postal;
         this.neighborhood = neighborhood;
+    }
+
+    function RouteLine(points) {
+        this.points = points;
     }
 
     //GUI SETUP
@@ -103,66 +125,26 @@ $(function() {
     f1.closed = false;
     gui.add(settings, 'redraw');
 
-    function reDrawStations() {
-        stationGroup.removeChildren();
-        drawStationStart = true;
-    }
-
-
-    //PAPER SETUP
-    paper.setup('paperCanvas');
-    var tool = new Tool();
-
-    //GLOBAL
-    var maxWidth = 2000;
-    var maxHeight = 2000;
-    var screenCenter = new Point(maxWidth/2, maxHeight/2);
-    paper.project.view.center = screenCenter;
-    var bikesNumMin = 12;
-    var bikesNumMax = 67;
-    var stations = [];
-    var routes = [];
-    var drawStationStart = false;
-
-    var neighborhoodGroup = new Group({
-        center: screenCenter,
-    });
-    // add boundary
-    var boundaryBox = new Path.Rectangle(0, 0, maxWidth, maxHeight);
-    neighborhoodGroup.addChild(boundaryBox);
-    // create station symbol
-    var stationDot = new Path.Circle({
-        center: screenCenter,
-        radius: 2,
-        fillColor: 'black'
-    });
-    var stationSymbol = new Symbol(stationDot);
-    var stationGroup = new Group({
-        center: screenCenter
-    });
-
-    downloadNeighborhood();
-    downloadStations();
-    view.draw();
-
-    view.onFrame = function(event) {
-        neighborhoodGroup.visible = settings.drawMap;
-        //draw stations
+    function drawStations(frameCount){
         if (drawStationStart) {
             drawStationStart = false;
             if (isNaN(this.stationDrawFrame)) {
-                this.stationDrawFrame = event.count;
+                this.stationDrawFrame = frameCount;
             }
             var totalStations = stations.length;
             if(stationGroup.children.length < totalStations){
-                var startIndex = (event.count - this.stationDrawFrame) * settings.stationsFrame;
+                var startIndex = (frameCount - this.stationDrawFrame) * settings.stationsFrame;
                 for (var i = startIndex; i < totalStations && i < startIndex + settings.stationsFrame; i++) {
                     var s = stations[i];
                     var ratio = (s.bikes - bikesNumMin) / (bikesNumMax - bikesNumMin);
                     var dot = stationSymbol.place(screenCenter);
+                    dot.id = s.sid;
                     dot.scale(1+ratio*2);
                     s.dot = dot;
                     stationGroup.addChild(dot);
+                    dot.onMouseUp = function(event){
+                        downloadRoutes(this.id);
+                    }
                 };
                 drawStationStart = true;
             }
@@ -182,6 +164,94 @@ $(function() {
         if(!drawStationStart){
             this.stationDrawFrame = NaN;
         }
+    }
+
+    function reDrawStations() {
+        stationGroup.removeChildren();
+        drawStationStart = true;
+    }
+
+    function drawRoutes(frameCount){
+        if (drawRouteStart) {
+            drawRouteStart = false;
+            if (isNaN(this.routeDrawFrame)) {
+                this.routeDrawFrame = frameCount;
+            }
+            var totalRoutes = routes.length;
+            if(routeGroup.children.length < totalRoutes){
+                //create route
+                var startIndex = frameCount - this.routeDrawFrame;
+                var line = new Path();
+                line.closed = false;
+                line.strokeColor = new Color(0.24, 0.9, 0.5, 0.3);
+                routes[startIndex].line = line;
+                routeGroup.addChild(line);
+                drawRouteStart = true;
+            }
+            $.each(routes, function(i, r) {
+                if (r.line) {
+                    var pointIndex = r.line.segments.length;
+                    var points = routes[i].points;
+                    if (pointIndex < points.length) {
+                        r.line.add(points[pointIndex]);
+                        drawRouteStart = true;
+                    };
+                };
+            });
+        };
+        if(!drawRouteStart){
+            this.routeDrawFrame = NaN;
+        }
+    }
+
+
+    //PAPER SETUP
+    paper.setup('paperCanvas');
+    var tool = new Tool();
+
+    //GLOBAL
+    var maxWidth = 2000;
+    var maxHeight = 2000;
+    var screenCenter = new Point(maxWidth/2, maxHeight/2);
+    paper.project.view.center = screenCenter;
+    var bikesNumMin = 12;
+    var bikesNumMax = 67;
+    var stations = [];
+    var drawStationStart = false;
+    var routes = [];
+    var drawRouteStart = false;
+
+    var neighborhoodGroup = new Group({
+        center: screenCenter,
+    });
+    // add boundary
+    var boundaryBox = new Path.Rectangle(0, 0, maxWidth, maxHeight);
+    neighborhoodGroup.addChild(boundaryBox);
+    // create station symbol
+    var stationDot = new Path.Circle({
+        center: screenCenter,
+        radius: 2,
+        fillColor: 'black'
+    });
+    var stationSymbol = new Symbol(stationDot);
+    var stationGroup = new Group({
+        center: screenCenter
+    });
+    var routeGroup = new Group({
+        center: screenCenter
+    });
+
+    downloadNeighborhood();
+    downloadStations();
+    view.draw();
+
+    view.onFrame = function(event) {
+        neighborhoodGroup.visible = settings.drawMap;
+        //draw stations
+        drawStations(event.count);
+
+        //draw routes
+        drawRoutes(event.count);
     }
 
     view.onResize = function(event) {
