@@ -28,8 +28,8 @@ $(function() {
 
     function getScreenPos(lat, lng) {
         var point = proj4(dest, [lng, lat]);
-        var posX = maxWidth/2 + (point[0] - center[0]) / 10;
-        var posY = maxHeight/2 - (point[1] - center[1]) / 10;
+        var posX = maxWidth / 2 + (point[0] - center[0]) / 10;
+        var posY = maxHeight / 2 - (point[1] - center[1]) / 10;
         return new Point(posX, posY);
     }
 
@@ -53,8 +53,8 @@ $(function() {
         });
     }
 
-    function drawNeighborhood(data){
-        $.each(data, function(i, n){
+    function drawNeighborhood(data) {
+        $.each(data, function(i, n) {
             var coordinates = n.coordinates;
             var path = new Path();
             path.name = n.name;
@@ -63,20 +63,21 @@ $(function() {
                 path.fillColor = new Color(0.98, 0.98, 0.98);
             };
             path.closed = true;
-            $.each(coordinates, function(j, c){
+            $.each(coordinates, function(j, c) {
                 path.add(getScreenPos(c[1], c[0]));
             });
             neighborhoodGroup.addChild(path);
-        }); 
+        });
         neighborhoodGroup.clipped = true;
     }
 
     function downloadRoutes(sid) {
         //clear routes
+        console.log('download: ' + sid);
         routes = [];
         routeGroup.removeChildren();
 
-        $.getJSON("http://bike.parseapp.com/getroute?start=" + sid.toString(), function(data) {
+        $.getJSON("http://bike.parseapp.com/getroutes?start=" + sid.toString(), function(data) {
             $.each(data, function(i, d) {
                 var points = [];
                 $.each(d['points'], function(j, p) {
@@ -125,25 +126,25 @@ $(function() {
     f1.closed = false;
     gui.add(settings, 'redraw');
 
-    function drawStations(frameCount){
+    function drawStations(frameCount) {
         if (drawStationStart) {
             drawStationStart = false;
             if (isNaN(this.stationDrawFrame)) {
                 this.stationDrawFrame = frameCount;
             }
             var totalStations = stations.length;
-            if(stationGroup.children.length < totalStations){
+            if (stationGroup.children.length < totalStations) {
                 var startIndex = (frameCount - this.stationDrawFrame) * settings.stationsFrame;
                 for (var i = startIndex; i < totalStations && i < startIndex + settings.stationsFrame; i++) {
                     var s = stations[i];
                     var ratio = (s.bikes - bikesNumMin) / (bikesNumMax - bikesNumMin);
                     var dot = stationSymbol.place(screenCenter);
-                    dot.id = s.sid;
-                    dot.scale(1+ratio*2);
+                    dot.scale(1 + ratio * 2);
+                    dot.sid = s.id;
                     s.dot = dot;
                     stationGroup.addChild(dot);
-                    dot.onMouseUp = function(event){
-                        downloadRoutes(this.id);
+                    dot.onMouseUp = function(event) {
+                        downloadRoutes(this.sid);
                     }
                 };
                 drawStationStart = true;
@@ -161,7 +162,7 @@ $(function() {
                 };
             });
         };
-        if(!drawStationStart){
+        if (!drawStationStart) {
             this.stationDrawFrame = NaN;
         }
     }
@@ -171,14 +172,14 @@ $(function() {
         drawStationStart = true;
     }
 
-    function drawRoutes(frameCount){
+    function drawRoutes(frameCount) {
         if (drawRouteStart) {
             drawRouteStart = false;
             if (isNaN(this.routeDrawFrame)) {
                 this.routeDrawFrame = frameCount;
             }
             var totalRoutes = routes.length;
-            if(routeGroup.children.length < totalRoutes){
+            if (routeGroup.children.length < totalRoutes) {
                 //create route
                 var startIndex = frameCount - this.routeDrawFrame;
                 var line = new Path();
@@ -199,7 +200,7 @@ $(function() {
                 };
             });
         };
-        if(!drawRouteStart){
+        if (!drawRouteStart) {
             this.routeDrawFrame = NaN;
         }
     }
@@ -212,7 +213,7 @@ $(function() {
     //GLOBAL
     var maxWidth = 2000;
     var maxHeight = 2000;
-    var screenCenter = new Point(maxWidth/2, maxHeight/2);
+    var screenCenter = new Point(maxWidth / 2, maxHeight / 2);
     paper.project.view.center = screenCenter;
     var bikesNumMin = 12;
     var bikesNumMax = 67;
@@ -227,6 +228,10 @@ $(function() {
     // add boundary
     var boundaryBox = new Path.Rectangle(0, 0, maxWidth, maxHeight);
     neighborhoodGroup.addChild(boundaryBox);
+    // route layer
+    var routeGroup = new Group({
+        center: screenCenter
+    });
     // create station symbol
     var stationDot = new Path.Circle({
         center: screenCenter,
@@ -235,9 +240,6 @@ $(function() {
     });
     var stationSymbol = new Symbol(stationDot);
     var stationGroup = new Group({
-        center: screenCenter
-    });
-    var routeGroup = new Group({
         center: screenCenter
     });
 
@@ -254,11 +256,9 @@ $(function() {
         drawRoutes(event.count);
     }
 
-    view.onResize = function(event) {
-    }
+    view.onResize = function(event) {}
 
-    tool.onMouseMove = function(event) {
-    }
+    tool.onMouseMove = function(event) {}
 
     tool.onMouseDown = function(event) {}
 
