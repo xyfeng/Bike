@@ -92,18 +92,28 @@ $(function() {
       this.stationColor = '#fa2537';
       this.stationScale = 2;
       this.stationOpacity = 0.45;
-      this.redraw = function() {
-        reDrawStations();
-      };
+      this.glowC = 0.2;
+      this.glowP = 4;
+      this.glowColor = '#ffff00';
+      this.glowSide = false;
+      this.glowVisible = true;
     }
     var settings = new Settings();
     var gui = new dat.GUI();
     var f0 = gui.addFolder('draw');
-    f0.addColor(settings, 'mapColor');
-    f0.addColor(settings, 'stationColor');
-    f0.add(settings, 'stationScale', 1, 5).step(0.1);
-    f0.add(settings, 'stationOpacity', 0.01, 1.0).step(0.01);
     f0.closed = false;
+    var gui_map_color = f0.addColor(settings, 'mapColor');
+    var gui_station_color = f0.addColor(settings, 'stationColor');
+    var gui_station_scale = f0.add(settings, 'stationScale', 1, 5).step(0.1);
+    var gui_station_opacity = f0.add(settings, 'stationOpacity', 0.01, 1.0).step(0.01);
+    //GLOW
+    var f1 = gui.addFolder('glow');
+    f1.closed = false;
+    var gui_glow_c = f1.add(settings, 'glowC', 0, 1).step(0.1);
+    var gui_glow_p = f1.add(settings, 'glowP', 0, 6).step(0.1);
+    var gui_glow_color = f1.addColor(settings, 'glowColor');
+    var gui_glow_side = f1.add(settings, 'glowSide').name('glowAll');
+    var gui_glow_visible = f1.add(settings, 'glowVisible').name('showObject');
 
     //SCENE
     var scene = new THREE.Scene();
@@ -133,6 +143,12 @@ $(function() {
     var controls = new THREE.OrbitControls(camera, renderer.domElement);
     controls.noRotate = true;
     // controls.noZoom = true;
+
+    //INTERACTION
+    var mouse, projector, clicked_station, clicked_station_glow;
+    mouse = new THREE.Vector2();
+    projector = new THREE.Projector();
+    $('body').on('click', 'canvas', onDocumentMouseDown);
 
     function downloadNeighborhood() {
       $.getJSON("data/neighborhood.json", function(data) {
@@ -171,7 +187,7 @@ $(function() {
       $.each(data, function(i, s) {
         var ratio = (s.bikes - bikesNumMin) / (bikesNumMax - bikesNumMin);
         var point = getScreenPos(s.lat, s.lng);
-        var circleMesh = addCircle(stations, 0xfa2537, 0.3, point[0], point[1], 1, 2 + ratio * 8, 1);
+        var circleMesh = addCircle(stations, 0xfa2537, settings.stationOpacity, point[0], point[1], 1, 2 + ratio * 8, settings.stationScale);
       });
     }
 
@@ -202,15 +218,129 @@ $(function() {
       renderer.render(scene, camera);
       // cube.rotation.x += 0.1;
       // cube.rotation.y += 0.1;
-
-      $.each(map.children, function(i, n) {
-        n.material.color.set(settings.mapColor);
-      });
-      $.each(stations.children, function(i, s) {
-        s.material.color.set(settings.stationColor);
-        s.material.opacity = settings.stationOpacity;
-        s.scale.set(settings.stationScale, settings.stationScale, 1);
-      });
     }
+
+    gui_map_color.onChange(function(value) {
+      $.each(map.children, function(i, n) {
+        n.material.color.set(value);
+      });
+    });
+
+    gui_station_color.onChange(function(value) {
+      if (clicked_station) {
+        dehighlightStation(clicked_station);
+        clicked_station = null;
+      }
+      $.each(stations.children, function(i, s) {
+        s.material.color.set(settings.value);
+      });
+    });
+
+    gui_station_scale.onChange(function(value) {
+      if (clicked_station) {
+        dehighlightStation(clicked_station);
+        clicked_station = null;
+      }
+      $.each(stations.children, function(i, s) {
+        s.scale.set(value, value, 1);
+      });
+    });
+
+    gui_station_opacity.onChange(function(value) {
+      if (clicked_station) {
+        dehighlightStation(clicked_station);
+        clicked_station = null;
+      }
+      $.each(stations.children, function(i, s) {
+        s.material.opacity = value;
+      });
+    });
+
+    gui_glow_c.onChange(function(value) {
+      clicked_station_glow.material.uniforms["c"].value = settings.glowC;
+    });
+
+    gui_glow_c.onChange(function(value) {
+      clicked_station_glow.material.uniforms["p"].value = settings.glowP;
+    });
+
+    gui_glow_color.onChange(function(value) {
+      clicked_station_glow.material.uniforms["glowColor"].value = settings.glowColor;
+    });
+
+    gui_glow_side.onChange(function(value) {
+      clicked_station_glow.material.side.value = (value) ? THREE.BackSide : THREE.FrontSide;
+    });
+
+    gui_glow_visible.onChange(function(value) {
+      clicked_station.visible = value;
+    });
+
+    function highlightStation(s) {
+      s.material.opacity = 1;
+
+      console.log(clicked_station);
+      //add glow
+      clicked_station_glow = new THREE.Mesh(s.geometry.clone(), new THREE.ShaderMaterial({
+        uniforms: {
+          "c": {
+            type: "f",
+            value: settings.glowC
+          },
+          "p": {
+            type: "f",
+            value: settings.glowP
+          },
+          glowColor: {
+            type: "c",
+            value: settings.glowColor
+          },
+          viewVector: {
+            type: "v3",
+            value: camera.position
+          }
+        },
+        vertexShader: THREE.GlowShader.vertexShader,
+        fragmentShader: THREE.GlowShader.fragmentShader,
+        side: (settings.glowSide) ? THREE.BackSide : THREE.FrontSide,
+        blending: THREE.AdditiveBlending,
+        transparent: true
+      }));
+      clicked_station_glow.position.set(s.position);
+      clicked_station_glow.scale.set(s.scale, s.scale, s.scale);
+      clicked_station_glow.scale.multiplyScalar(1.2);
+      stations.add(clicked_station_glow);
+    }
+
+    function dehighlightStation(s) {
+      stations.remove(clicked_station_glow);
+      s.material.opacity = settings.stationOpacity;
+    }
+
+    function onDocumentMouseDown(event) {
+      event.preventDefault();
+      mouse.x = (event.pageX / $(window).width()) * 2 - 1;
+      mouse.y = -(event.pageY / $(window).height()) * 2 + 1;
+      var vector = new THREE.Vector3(mouse.x, mouse.y, 1);
+      var ray = projector.pickingRay(vector, camera);
+
+      var intersects = ray.intersectObjects(stations.children);
+      if (intersects.length > 0) {
+        console.log('find one');
+        var clickedObject = intersects[0].object;
+        if (clickedObject != clicked_station) {
+          if (clicked_station) {
+            dehighlightStation(clicked_station);
+          }
+          clicked_station = clickedObject;
+          highlightStation(clicked_station);
+        }
+      } else {
+        console.log('find nothing');
+        dehighlightStation(clicked_station);
+        clicked_station = null;
+      }
+    }
+
   }
 })
