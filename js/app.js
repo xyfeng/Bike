@@ -106,14 +106,6 @@ $(function() {
     var gui_station_color = f0.addColor(settings, 'stationColor');
     var gui_station_scale = f0.add(settings, 'stationScale', 1, 5).step(0.1);
     var gui_station_opacity = f0.add(settings, 'stationOpacity', 0.01, 1.0).step(0.01);
-    //GLOW
-    var f1 = gui.addFolder('glow');
-    f1.closed = false;
-    var gui_glow_c = f1.add(settings, 'glowC', 0, 1).step(0.1);
-    var gui_glow_p = f1.add(settings, 'glowP', 0, 6).step(0.1);
-    var gui_glow_color = f1.addColor(settings, 'glowColor');
-    var gui_glow_side = f1.add(settings, 'glowSide').name('glowAll');
-    var gui_glow_visible = f1.add(settings, 'glowVisible').name('showObject');
 
     //SCENE
     var scene = new THREE.Scene();
@@ -141,14 +133,15 @@ $(function() {
 
     //CONTROLS
     var controls = new THREE.OrbitControls(camera, renderer.domElement);
-    controls.noRotate = true;
+    // controls.noRotate = true;
     // controls.noZoom = true;
 
     //INTERACTION
-    var mouse, projector, clicked_station, clicked_station_glow;
+    var mouse, projector, clicked_station;
     mouse = new THREE.Vector2();
     projector = new THREE.Projector();
     $('body').on('click', 'canvas', onDocumentMouseDown);
+    window.addEventListener('resize', onWindowResize, false);
 
     function downloadNeighborhood() {
       $.getJSON("data/neighborhood.json", function(data) {
@@ -192,13 +185,46 @@ $(function() {
     }
 
     //OBJECTS
-    // var geometry = new THREE.BoxGeometry(100, 100, 100);
-    // var material = new THREE.MeshPhongMaterial({
-    //   color: 0x00ff00
-    // });
-    // var cube = new THREE.Mesh(geometry, material);
-    // scene.add(cube);
+    var geometry = new THREE.BoxGeometry(100, 100, 100, 2, 2, 2);
+    var material = new THREE.MeshPhongMaterial({
+      color: 0x00ff00
+    });
+    var cube = new THREE.Mesh(geometry, material);
+    cube.position.set(0, 0, 100);
+    scene.add(cube);
 
+    // add glow
+    var smoothCubeGeom = geometry.clone();
+    var modifier = new THREE.SubdivisionModifier(2);
+    modifier.modify(smoothCubeGeom);
+    cube_glow = new THREE.Mesh(smoothCubeGeom, new THREE.ShaderMaterial({
+      uniforms: {
+        "c": {
+          type: "f",
+          value: settings.glowC
+        },
+        "p": {
+          type: "f",
+          value: settings.glowP
+        },
+        glowColor: {
+          type: "c",
+          value: new THREE.Color(settings.glowColor)
+        },
+        viewVector: {
+          type: "v3",
+          value: camera.position
+        }
+      },
+      vertexShader: THREE.GlowShader.vertexShader,
+      fragmentShader: THREE.GlowShader.fragmentShader,
+      side: THREE.FrontSide,
+      blending: THREE.AdditiveBlending,
+      transparent: true
+    }));
+    cube_glow.position.set(0, 0, 100);
+    cube_glow.scale.multiplyScalar(1.5);
+    scene.add(cube_glow);
 
     //RUN
     downloadNeighborhood();
@@ -208,6 +234,7 @@ $(function() {
     function animate() {
       requestAnimationFrame(animate);
       render();
+      update();
 
       controls.update();
       stats.update();
@@ -216,8 +243,15 @@ $(function() {
 
     function render() {
       renderer.render(scene, camera);
-      // cube.rotation.x += 0.1;
-      // cube.rotation.y += 0.1;
+    }
+
+    function update() {
+      cube.rotation.x += 0.1;
+      cube.rotation.y += 0.1;
+      cube_glow.rotation.x += 0.1;
+      cube_glow.rotation.y += 0.1;
+      cube_glow.material.uniforms.viewVector.value =
+        new THREE.Vector3().subVectors(camera.position, cube_glow.position);
     }
 
     gui_map_color.onChange(function(value) {
@@ -256,65 +290,18 @@ $(function() {
       });
     });
 
-    gui_glow_c.onChange(function(value) {
-      clicked_station_glow.material.uniforms["c"].value = settings.glowC;
-    });
-
-    gui_glow_c.onChange(function(value) {
-      clicked_station_glow.material.uniforms["p"].value = settings.glowP;
-    });
-
-    gui_glow_color.onChange(function(value) {
-      clicked_station_glow.material.uniforms["glowColor"].value = settings.glowColor;
-    });
-
-    gui_glow_side.onChange(function(value) {
-      clicked_station_glow.material.side.value = (value) ? THREE.BackSide : THREE.FrontSide;
-    });
-
-    gui_glow_visible.onChange(function(value) {
-      clicked_station.visible = value;
-    });
-
     function highlightStation(s) {
       s.material.opacity = 1;
-
-      console.log(clicked_station);
-      //add glow
-      clicked_station_glow = new THREE.Mesh(s.geometry.clone(), new THREE.ShaderMaterial({
-        uniforms: {
-          "c": {
-            type: "f",
-            value: settings.glowC
-          },
-          "p": {
-            type: "f",
-            value: settings.glowP
-          },
-          glowColor: {
-            type: "c",
-            value: settings.glowColor
-          },
-          viewVector: {
-            type: "v3",
-            value: camera.position
-          }
-        },
-        vertexShader: THREE.GlowShader.vertexShader,
-        fragmentShader: THREE.GlowShader.fragmentShader,
-        side: (settings.glowSide) ? THREE.BackSide : THREE.FrontSide,
-        blending: THREE.AdditiveBlending,
-        transparent: true
-      }));
-      clicked_station_glow.position.set(s.position);
-      clicked_station_glow.scale.set(s.scale, s.scale, s.scale);
-      clicked_station_glow.scale.multiplyScalar(1.2);
-      stations.add(clicked_station_glow);
     }
 
     function dehighlightStation(s) {
-      stations.remove(clicked_station_glow);
       s.material.opacity = settings.stationOpacity;
+    }
+
+    function onWindowResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
     }
 
     function onDocumentMouseDown(event) {

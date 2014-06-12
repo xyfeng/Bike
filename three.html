@@ -1,24 +1,51 @@
 <!doctype html>
 <html>
+
 <head>
-    <title>NYC</title>
-    <meta charset="utf-8">
-    <meta name="viewport" content="user-scalable=no">
-    <meta name="description" content="">
-    <meta name="keywords" content="">
-    <meta name="author" content="XY Feng">
-    <script src="js/libs/proj4.js"></script>
-    <script src="js/libs/dat.gui.js"></script>
-    <script src="js/libs/stats.min.js"></script>
-    <script src="js/libs/tween.js"></script>
-    <script src="js/libs/clipper.js"></script>
-    <script src="js/libs/jquery.js"></script>
-    <script src="js/libs/three.min.js"></script>
-    <script src="js/libs/three/controls/OrbitControls.js"></script>
-    <script src="js/libs/three/shaders/GlowShader.js"></script>
-    <script src="js/app.js"></script>
-    <link rel="stylesheet" href="css/app.css">
+  <title>NYC</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="user-scalable=no">
+  <meta name="description" content="">
+  <meta name="keywords" content="">
+  <meta name="author" content="XY Feng">
+  <script src="js/libs/proj4.js"></script>
+  <script src="js/libs/dat.gui.js"></script>
+  <script src="js/libs/stats.min.js"></script>
+  <script src="js/libs/tween.js"></script>
+  <script src="js/libs/clipper.js"></script>
+  <script src="js/libs/jquery.js"></script>
+  <script src="js/libs/three.min.js"></script>
+  <script src="js/libs/three/controls/OrbitControls.js"></script>
+  <script src="js/libs/three/modifiers/SubdivisionModifier.js"></script>
+  <script src="js/libs/three/shaders/GlowShader.js"></script>
+  <script id="vertexShader" type="x-shader/x-vertex">
+    uniform vec3 viewVector;
+    uniform float c;
+    uniform float p;
+    varying float intensity;
+    void main() {
+      vec3 vNormal = normalize(normalMatrix * normal);
+      vec3 vNormel = normalize(normalMatrix * viewVector);
+      intensity = pow(c - dot(vNormal, vNormel), p);
+
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  </script>
+
+  <!-- fragment shader a.k.a. pixel shader -->
+  <script id="fragmentShader" type="x-shader/x-vertex">
+    uniform vec3 glowColor;
+    varying float intensity;
+    void main() {
+      vec3 glow = glowColor * intensity;
+      gl_FragColor = vec4(glow, 1.0);
+    }
+  </script>
+  <script src="js/app.js"></script>
+  <link rel="stylesheet" href="css/app.css">
 </head>
+
 <body style="overflow: hidden;">
 </body>
+
 </html>
