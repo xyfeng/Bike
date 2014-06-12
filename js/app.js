@@ -185,46 +185,13 @@ $(function() {
     }
 
     //OBJECTS
-    var geometry = new THREE.BoxGeometry(100, 100, 100, 2, 2, 2);
-    var material = new THREE.MeshPhongMaterial({
-      color: 0x00ff00
-    });
-    var cube = new THREE.Mesh(geometry, material);
-    cube.position.set(0, 0, 100);
-    scene.add(cube);
-
-    // add glow
-    var smoothCubeGeom = geometry.clone();
-    var modifier = new THREE.SubdivisionModifier(2);
-    modifier.modify(smoothCubeGeom);
-    cube_glow = new THREE.Mesh(smoothCubeGeom, new THREE.ShaderMaterial({
-      uniforms: {
-        "c": {
-          type: "f",
-          value: settings.glowC
-        },
-        "p": {
-          type: "f",
-          value: settings.glowP
-        },
-        glowColor: {
-          type: "c",
-          value: new THREE.Color(settings.glowColor)
-        },
-        viewVector: {
-          type: "v3",
-          value: camera.position
-        }
-      },
-      vertexShader: THREE.GlowShader.vertexShader,
-      fragmentShader: THREE.GlowShader.fragmentShader,
-      side: THREE.FrontSide,
-      blending: THREE.AdditiveBlending,
-      transparent: true
-    }));
-    cube_glow.position.set(0, 0, 100);
-    cube_glow.scale.multiplyScalar(1.5);
-    scene.add(cube_glow);
+    // var geometry = new THREE.BoxGeometry(100, 100, 100, 2, 2, 2);
+    // var material = new THREE.MeshPhongMaterial({
+    //   color: 0x00ff00
+    // });
+    // var cube = new THREE.Mesh(geometry, material);
+    // cube.position.set(0, 0, 100);
+    // scene.add(cube);
 
     //RUN
     downloadNeighborhood();
@@ -246,12 +213,8 @@ $(function() {
     }
 
     function update() {
-      cube.rotation.x += 0.1;
-      cube.rotation.y += 0.1;
-      cube_glow.rotation.x += 0.1;
-      cube_glow.rotation.y += 0.1;
-      cube_glow.material.uniforms.viewVector.value =
-        new THREE.Vector3().subVectors(camera.position, cube_glow.position);
+      // cube.rotation.x += 0.1;
+      // cube.rotation.y += 0.1;
     }
 
     gui_map_color.onChange(function(value) {
